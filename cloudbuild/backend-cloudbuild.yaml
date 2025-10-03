@@ -42,7 +42,7 @@ steps:
     args:
       - 'run'
       - '--filename=k8s/backend-deployment.yaml'
-      - '--image=backend=$_AR_URI/backend:$COMMIT_SHA'
+      - '--image=$_AR_URI/backend:$COMMIT_SHA'
       - '--cluster=app-cluster'
       - '--location=us-central1'
       - '--namespace=default'

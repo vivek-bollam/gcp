@@ -35,7 +35,7 @@ steps:
     args:
       - 'run'
       - '--filename=k8s/frontend-deployment.yaml'
-      - '--image=frontend=$_AR_URI/frontend:$COMMIT_SHA'
+      - '--image=$_AR_URI/frontend:$COMMIT_SHA'
       - '--cluster=app-cluster'
       - '--location=us-central1'
       - '--namespace=default'

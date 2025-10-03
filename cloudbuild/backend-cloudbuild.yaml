@@ -1,3 +1,4 @@
+timeout: 1800s
 steps:
   # Install dependencies
   - name: 'gcr.io/cloud-builders/npm'

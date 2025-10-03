@@ -1,3 +1,5 @@
+timeout: 1800s
+
 steps:
   # Install dependencies
   - name: 'gcr.io/cloud-builders/npm'
@@ -47,7 +49,6 @@ substitutions:
 
 options:
   logging: CLOUD_LOGGING_ONLY
-  timeout: '1800s'
 
 availableSecrets:
   secretManager:

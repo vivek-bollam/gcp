@@ -1,14 +1,15 @@
-timeout: 1800s
 steps:
-  # Install dependencies
+  # 1. Install dependencies
   - name: 'gcr.io/cloud-builders/npm'
     args: ['ci']
     dir: 'backend'
-  # Run unit tests
+
+  # 2. Run unit tests
   - name: 'gcr.io/cloud-builders/npm'
     args: ['test']
     dir: 'backend'
-  # Build Docker image
+
+  # 3. Build Docker image
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'build'
@@ -16,7 +17,14 @@ steps:
       - '$_AR_URI/backend:$COMMIT_SHA'
       - '.'
     dir: 'backend'
-  # Scan for vulnerabilities
+
+  # 4. Push Docker image to Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - '$_AR_URI/backend:$COMMIT_SHA'
+
+  # 5. Scan image with Trivy (now using Artifact Registry image)
   - name: 'aquasec/trivy:0.45.1'
     args:
       - 'image'
@@ -26,10 +34,8 @@ steps:
       - '--severity'
       - 'HIGH,CRITICAL'
       - '$_AR_URI/backend:$COMMIT_SHA'
-  # Push to Artifact Registry
-  - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', '$_AR_URI/backend:$COMMIT_SHA']
-  # Update secret with commit SHA
+
+  # 6. Update secret with commit SHA (optional)
   - name: 'gcr.io/cloud-builders/gcloud'
     entrypoint: 'bash'
     args:
@@ -37,7 +43,8 @@ steps:
       - |
         echo "GIT_COMMIT_SHA=$COMMIT_SHA" | gcloud secrets versions add git-commit-sha --data-file=-
     secretEnv: ['GCP_PROJECT']
-  # Deploy to GKE
+
+  # 7. Deploy to GKE
   - name: 'gcr.io/cloud-builders/gke-deploy'
     args:
       - 'run'
@@ -56,7 +63,6 @@ substitutions:
 
 options:
   logging: CLOUD_LOGGING_ONLY
- 
 
 availableSecrets:
   secretManager:

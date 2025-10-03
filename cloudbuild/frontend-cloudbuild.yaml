@@ -44,7 +44,7 @@ steps:
     secretEnv: ['GCP_PROJECT']
 
 substitutions:
-  _AR_URI: 'us-central1-docker.pkg.dev/my-gke-project-473809/app-repo'
+  _AR_URI: 'us-central1-docker.pkg.dev/my-gke-project-473809/my-repo'
   _COMMIT_SHA: '$COMMIT_SHA'
 
 options:

@@ -43,7 +43,7 @@ steps:
       - 'run'
       - '--filename=k8s/backend-deployment.yaml'
       - '--image=$_AR_URI/backend:$COMMIT_SHA'
-      - '--cluster=app-cluster'
+      - '--cluster=sample-autopilot'
       - '--location=us-central1'
       - '--namespace=default'
     env:

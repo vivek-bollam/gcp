@@ -7,7 +7,7 @@ WORKDIR /app
 
 # Copy package files and install production dependencies
 COPY package*.json ./
-RUN npm install --omit=dev
+RUN npm ci
 
 # =========================
 # Production stage

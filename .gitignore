@@ -1,0 +1,19 @@
+# Node dependencies
+backend/node_modules/
+frontend/node_modules/
+
+# Terraform local files
+infra/.terraform/
+infra/terraform.tfstate
+infra/terraform.tfstate.backup
+infra/.terraform.lock.hcl
+
+# IDE / OS files
+.vscode/
+.idea/
+*.log
+*.tmp
+*.DS_Store
+
+# Optional: frontend build
+frontend/build/

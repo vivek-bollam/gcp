@@ -12,14 +12,14 @@ steps:
     args:
       - 'build'
       - '-t'
-      - '$_AR_URI/backend:$_COMMIT_SHA'
+      - '$_AR_URI/backend:$COMMIT_SHA'
       - '.'
     dir: 'backend'
   # 4. Push Docker image to Artifact Registry
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'push'
-      - '$_AR_URI/backend:$_COMMIT_SHA'
+      - '$_AR_URI/backend:$COMMIT_SHA'
   # 5. Dummy step to reference gcp-key volume
   - name: 'gcr.io/cloud-builders/gcloud'
     entrypoint: 'bash'
@@ -43,7 +43,7 @@ steps:
       - 'HIGH,CRITICAL'
       - '--ignorefile'
       - '/workspace/backend/.trivyignore'
-      - '$_AR_URI/backend:$_COMMIT_SHA'
+      - '$_AR_URI/backend:$COMMIT_SHA'
     dir: 'backend'
     env:
       - 'GOOGLE_APPLICATION_CREDENTIALS=/workspace/key.json'
@@ -57,22 +57,16 @@ steps:
     args:
       - '-c'
       - |
-        echo "GIT_COMMIT_SHA=$_COMMIT_SHA" | gcloud secrets versions add git-commit-sha --data-file=-
+        echo "GIT_COMMIT_SHA=$COMMIT_SHA" | gcloud secrets versions add git-commit-sha --data-file=-
     secretEnv: ['GCP_PROJECT']
-  # 8. Deploy to GKE
-  - name: 'gcr.io/cloud-builders/gke-deploy'
+  # 8. Deploy to GKE (using kubectl to avoid substitution issues)
+  - name: 'gcr.io/cloud-builders/gcloud'
     entrypoint: 'bash'
     args:
       - '-c'
       - |
-        echo "DEBUG: COMMIT_SHA is $_COMMIT_SHA"
-        if [ -z "$_COMMIT_SHA" ]; then echo "ERROR: _COMMIT_SHA is empty"; exit 1; fi
-        gke-deploy run \
-          --filename=k8s/backend-deployment.yaml \
-          --image=$_AR_URI/backend:$_COMMIT_SHA \
-          --cluster=sample-autopilot \
-          --location=us-central1 \
-          --namespace=default
+        gcloud container clusters get-credentials sample-autopilot --region=us-central1 --project=$GCP_PROJECT &&
+        kubectl set image deployment/backend backend=$_AR_URI/backend:$COMMIT_SHA --record
     env:
       - 'CLOUDSDK_COMPUTE_ZONE=us-central1'
     secretEnv: ['GCP_PROJECT']
@@ -88,4 +82,4 @@ availableSecrets:
     - versionName: projects/my-gke-project-473809/secrets/cloudbuild-sa-key/versions/latest
       env: 'GCP_KEY_JSON'
 images:
-  - '$_AR_URI/backend:$_COMMIT_SHA'
+  - '$_AR_URI/backend:$COMMIT_SHA'

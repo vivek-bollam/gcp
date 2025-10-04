@@ -14,7 +14,17 @@ steps:
   # 4. Push Docker image to Artifact Registry
   - name: 'gcr.io/cloud-builders/docker'
     args: ['push', '$_AR_URI/backend:$COMMIT_SHA']
-  # 5. Scan image with Trivy (using GCP ADC)
+  # 5. Dummy step to reference gcp-key volume
+  - name: 'gcr.io/cloud-builders/gcloud'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - 'ls /workspace/key.json'
+    volumes:
+      - name: 'gcp-key'
+        path: '/workspace/key.json'
+    secretEnv: ['GCP_KEY_JSON']
+  # 6. Scan image with Trivy (using GCP ADC)
   - name: 'aquasec/trivy:0.45.1'
     args:
       - 'image'
@@ -31,8 +41,11 @@ steps:
     dir: 'backend'
     env:
       - 'GOOGLE_APPLICATION_CREDENTIALS=/workspace/key.json'
+    volumes:
+      - name: 'gcp-key'
+        path: '/workspace/key.json'
     secretEnv: ['GCP_KEY_JSON']
-  # 6. Update secret with commit SHA
+  # 7. Update secret with commit SHA
   - name: 'gcr.io/cloud-builders/gcloud'
     entrypoint: 'bash'
     args:
@@ -40,7 +53,7 @@ steps:
       - |
         echo "GIT_COMMIT_SHA=$COMMIT_SHA" | gcloud secrets versions add git-commit-sha --data-file=-
     secretEnv: ['GCP_PROJECT']
-  # 7. Deploy to GKE
+  # 8. Deploy to GKE
   - name: 'gcr.io/cloud-builders/gke-deploy'
     args:
       - 'run'
@@ -57,9 +70,6 @@ substitutions:
   _COMMIT_SHA: '$COMMIT_SHA'
 options:
   logging: CLOUD_LOGGING_ONLY
-volumes:
-  - name: 'gcp-key'
-    path: '/workspace/key.json'
 availableSecrets:
   secretManager:
     - versionName: projects/my-gke-project-473809/secrets/project-id/versions/latest

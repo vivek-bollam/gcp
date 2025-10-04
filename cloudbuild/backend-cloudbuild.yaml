@@ -51,7 +51,7 @@ steps:
       - name: 'gcp-key'
         path: '/workspace/key.json'
     secretEnv: ['GCP_KEY_JSON']
- # 7. Update secret with commit SHA
+  # 7. Update secret with commit SHA
   - name: 'gcr.io/cloud-builders/gcloud'
     entrypoint: 'bash'
     args:

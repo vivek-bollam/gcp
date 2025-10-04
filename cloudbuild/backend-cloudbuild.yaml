@@ -14,17 +14,17 @@ steps:
     args:
       - 'build'
       - '-t'
-      - "$_AR_URI/backend:$_COMMIT_SHA"
+      - "$_AR_URI/backend:$COMMIT_SHA"
       - '.'
     dir: 'backend'
 
-  # 4. Push Docker image to Artifact Registry
+  # 4. Push Docker image
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'push'
-      - "$_AR_URI/backend:$_COMMIT_SHA"
+      - "$_AR_URI/backend:$COMMIT_SHA"
 
-  # 5. Dummy step to reference gcp-key volume
+  # 5. Dummy step to reference GCP key volume
   - name: 'gcr.io/cloud-builders/gcloud'
     entrypoint: 'bash'
     args:
@@ -48,7 +48,7 @@ steps:
       - 'HIGH,CRITICAL'
       - '--ignorefile'
       - '/workspace/backend/.trivyignore'
-      - "$_AR_URI/backend:$_COMMIT_SHA"
+      - "$_AR_URI/backend:$COMMIT_SHA"
     dir: 'backend'
     env:
       - 'GOOGLE_APPLICATION_CREDENTIALS=/workspace/key.json'
@@ -63,25 +63,38 @@ steps:
     args:
       - '-c'
       - |
-        echo "GIT_COMMIT_SHA=$_COMMIT_SHA" | gcloud secrets versions add git-commit-sha --data-file=-
+        echo "GIT_COMMIT_SHA=$COMMIT_SHA" | gcloud secrets versions add git-commit-sha --data-file=-
     secretEnv: ['GCP_PROJECT']
 
-  # 8. Deploy to GKE
+  # 8. Set IMAGE environment variable for gke-deploy
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'set-image-variable'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        export IMAGE="$_AR_URI/backend:$COMMIT_SHA"
+        echo "IMAGE=$IMAGE" >> $BUILD_ENV_FILE
+    env:
+      - 'COMMIT_SHA'
+      - '_AR_URI'
+
+  # 9. Deploy to GKE
   - name: 'gcr.io/cloud-builders/gke-deploy'
     args:
       - 'run'
       - '--filename=k8s/backend-deployment.yaml'
-      - "--image=$_AR_URI/backend:$_COMMIT_SHA"
+      - '--image=$IMAGE'
       - '--cluster=sample-autopilot'
       - '--location=us-central1'
       - '--namespace=default'
     env:
+      - 'IMAGE'
       - 'CLOUDSDK_COMPUTE_ZONE=us-central1'
     secretEnv: ['GCP_PROJECT']
 
 substitutions:
   _AR_URI: us-central1-docker.pkg.dev/my-gke-project-473809/my-repo
-  _COMMIT_SHA: $COMMIT_SHA   # ← built-in variable, no quotes
 
 options:
   logging: CLOUD_LOGGING_ONLY
@@ -94,4 +107,4 @@ availableSecrets:
       env: 'GCP_KEY_JSON'
 
 images:
-  - "$_AR_URI/backend:$_COMMIT_SHA"
+  - "$_AR_URI/backend:$COMMIT_SHA"

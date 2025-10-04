@@ -66,32 +66,25 @@ steps:
         echo "GIT_COMMIT_SHA=$COMMIT_SHA" | gcloud secrets versions add git-commit-sha --data-file=-
     secretEnv: ['GCP_PROJECT']
 
-  # 8. Set IMAGE environment variable for gke-deploy
-  - name: 'gcr.io/cloud-builders/gcloud'
-    id: 'set-image-variable'
+  # 8. Deploy to GKE (resolving full image in bash)
+  - name: 'gcr.io/cloud-builders/gke-deploy'
     entrypoint: 'bash'
     args:
       - '-c'
       - |
-        export IMAGE="$_AR_URI/backend:$COMMIT_SHA"
-        echo "IMAGE=$IMAGE" >> $BUILD_ENV_FILE
+        IMAGE="$_AR_URI/backend:$COMMIT_SHA"
+        echo "Deploying image: $IMAGE"
+        gke-deploy run \
+          --filename=k8s/backend-deployment.yaml \
+          --image="$IMAGE" \
+          --cluster=sample-autopilot \
+          --location=us-central1 \
+          --namespace=default
     env:
-      - 'COMMIT_SHA'
-      - '_AR_URI'
-
-  # 9. Deploy to GKE
-  - name: 'gcr.io/cloud-builders/gke-deploy'
-    args:
-      - 'run'
-      - '--filename=k8s/backend-deployment.yaml'
-      - '--image=$IMAGE'
-      - '--cluster=sample-autopilot'
-      - '--location=us-central1'
-      - '--namespace=default'
-    env:
-      - 'IMAGE'
       - 'CLOUDSDK_COMPUTE_ZONE=us-central1'
-    secretEnv: ['GCP_PROJECT']
+      - '_AR_URI'
+      - 'COMMIT_SHA'
+      - 'GCP_PROJECT'
 
 substitutions:
   _AR_URI: us-central1-docker.pkg.dev/my-gke-project-473809/my-repo

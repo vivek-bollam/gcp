@@ -51,7 +51,7 @@ steps:
       - name: 'gcp-key'
         path: '/workspace/key.json'
     secretEnv: ['GCP_KEY_JSON']
-  # 7. Update secret with commit SHA
+ # 7. Update secret with commit SHA
   - name: 'gcr.io/cloud-builders/gcloud'
     entrypoint: 'bash'
     args:
@@ -59,23 +59,35 @@ steps:
       - |
         echo "GIT_COMMIT_SHA=$COMMIT_SHA" | gcloud secrets versions add git-commit-sha --data-file=-
     secretEnv: ['GCP_PROJECT']
-  # 8. Deploy to GKE (using kubectl)
+  # 8. Debug environment variables
   - name: 'gcr.io/cloud-builders/gcloud'
     entrypoint: 'bash'
     args:
       - '-c'
       - |
         set -e
-        echo "DEBUG: Project ID from secret: $GCP_PROJECT"
-        echo "DEBUG: Commit SHA: $COMMIT_SHA"
-        echo "DEBUG: Image: $_AR_URI/backend:$COMMIT_SHA"
-        if [ -z "$GCP_PROJECT" ]; then echo "ERROR: GCP_PROJECT is empty"; exit 1; fi
-        if [ -z "$COMMIT_SHA" ]; then echo "ERROR: COMMIT_SHA is empty"; exit 1; fi
-        gcloud container clusters get-credentials sample-autopilot --region=us-central1 --project="$GCP_PROJECT"
-        kubectl set image deployment/backend backend=$_AR_URI/backend:$COMMIT_SHA --namespace=default --record
+        echo "DEBUG: Listing environment variables"
+        env
+        echo "DEBUG: GCP_PROJECT is $GCP_PROJECT"
+        echo "DEBUG: COMMIT_SHA is $COMMIT_SHA"
+        echo "DEBUG: Image is $_AR_URI/backend:$COMMIT_SHA"
     env:
       - 'CLOUDSDK_COMPUTE_ZONE=us-central1'
     secretEnv: ['GCP_PROJECT']
+  # 9. Deploy to GKE (using kubectl)
+  - name: 'gcr.io/cloud-builders/gcloud'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -e
+        echo "DEBUG: Commit SHA: $COMMIT_SHA"
+        echo "DEBUG: Image: $_AR_URI/backend:$COMMIT_SHA"
+        if [ -z "$COMMIT_SHA" ]; then echo "ERROR: COMMIT_SHA is empty"; exit 1; fi
+        gcloud container clusters get-credentials sample-autopilot --region=us-central1 --project=my-gke-project-473809
+        kubectl set image deployment/backend backend=$_AR_URI/backend:$COMMIT_SHA --namespace=default --record
+    env:
+      - 'CLOUDSDK_COMPUTE_ZONE=us-central1'
 substitutions:
   _AR_URI: us-central1-docker.pkg.dev/my-gke-project-473809/my-repo
   _COMMIT_SHA: $COMMIT_SHA

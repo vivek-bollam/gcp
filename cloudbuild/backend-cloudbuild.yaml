@@ -59,14 +59,20 @@ steps:
       - |
         echo "GIT_COMMIT_SHA=$COMMIT_SHA" | gcloud secrets versions add git-commit-sha --data-file=-
     secretEnv: ['GCP_PROJECT']
-  # 8. Deploy to GKE (using kubectl to avoid substitution issues)
+  # 8. Deploy to GKE (using kubectl)
   - name: 'gcr.io/cloud-builders/gcloud'
     entrypoint: 'bash'
     args:
       - '-c'
       - |
-        gcloud container clusters get-credentials sample-autopilot --region=us-central1 --project=$GCP_PROJECT &&
-        kubectl set image deployment/backend backend=$_AR_URI/backend:$COMMIT_SHA --record
+        set -e
+        echo "DEBUG: Project ID from secret: $GCP_PROJECT"
+        echo "DEBUG: Commit SHA: $COMMIT_SHA"
+        echo "DEBUG: Image: $_AR_URI/backend:$COMMIT_SHA"
+        if [ -z "$GCP_PROJECT" ]; then echo "ERROR: GCP_PROJECT is empty"; exit 1; fi
+        if [ -z "$COMMIT_SHA" ]; then echo "ERROR: COMMIT_SHA is empty"; exit 1; fi
+        gcloud container clusters get-credentials sample-autopilot --region=us-central1 --project="$GCP_PROJECT"
+        kubectl set image deployment/backend backend=$_AR_URI/backend:$COMMIT_SHA --namespace=default --record
     env:
       - 'CLOUDSDK_COMPUTE_ZONE=us-central1'
     secretEnv: ['GCP_PROJECT']

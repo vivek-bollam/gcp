@@ -65,7 +65,7 @@ steps:
     args:
       - 'run'
       - '--filename=k8s/backend-deployment.yaml'
-      - '--image=$_AR_URI/backend:$COMMIT_SHA'
+      - "--image=$_AR_URI/backend:$COMMIT_SHA"
       - '--cluster=sample-autopilot'
       - '--location=us-central1'
       - '--namespace=default'

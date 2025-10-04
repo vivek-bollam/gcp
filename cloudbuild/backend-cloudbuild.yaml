@@ -68,7 +68,6 @@ steps:
         set -e
         echo "DEBUG: Listing environment variables"
         env
-        echo "DEBUG: GCP_PROJECT is $GCP_PROJECT"
         echo "DEBUG: COMMIT_SHA is $COMMIT_SHA"
         echo "DEBUG: Image is $_AR_URI/backend:$COMMIT_SHA"
     env:

@@ -59,7 +59,7 @@ steps:
     args:
       - '-c'
       - |
-        /builder/gke-deploy run \
+        gke-deploy run \
           --filename=k8s/backend-deployment.yaml \
           --image=us-central1-docker.pkg.dev/my-gke-project-473809/my-repo/backend:$COMMIT_SHA \
           --cluster=sample-autopilot \

@@ -61,18 +61,18 @@ steps:
     secretEnv: ['GCP_PROJECT']
   # 8. Deploy to GKE
   - name: 'gcr.io/cloud-builders/gke-deploy'
+    entrypoint: 'bash'
     args:
-      - 'run'
-      - '--filename'
-      - 'k8s/backend-deployment.yaml'
-      - '--image'
-      - '$_AR_URI/backend:$_COMMIT_SHA'
-      - '--cluster'
-      - 'sample-autopilot'
-      - '--location'
-      - 'us-central1'
-      - '--namespace'
-      - 'default'
+      - '-c'
+      - |
+        echo "DEBUG: COMMIT_SHA is $_COMMIT_SHA"
+        if [ -z "$_COMMIT_SHA" ]; then echo "ERROR: _COMMIT_SHA is empty"; exit 1; fi
+        gke-deploy run \
+          --filename=k8s/backend-deployment.yaml \
+          --image=$_AR_URI/backend:$_COMMIT_SHA \
+          --cluster=sample-autopilot \
+          --location=us-central1 \
+          --namespace=default
     env:
       - 'CLOUDSDK_COMPUTE_ZONE=us-central1'
     secretEnv: ['GCP_PROJECT']

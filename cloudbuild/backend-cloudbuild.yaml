@@ -55,13 +55,16 @@ steps:
     secretEnv: ['GCP_PROJECT']
   # 8. Deploy to GKE
   - name: 'gcr.io/cloud-builders/gke-deploy'
+    entrypoint: 'bash'
     args:
-      - 'run'
-      - '--filename=k8s/backend-deployment.yaml'
-      - '--image=$_AR_URI/backend:$COMMIT_SHA'
-      - '--cluster=sample-autopilot'
-      - '--location=us-central1'
-      - '--namespace=default'
+      - '-c'
+      - |
+        /builder/gke-deploy run \
+          --filename=k8s/backend-deployment.yaml \
+          --image=us-central1-docker.pkg.dev/my-gke-project-473809/my-repo/backend:$COMMIT_SHA \
+          --cluster=sample-autopilot \
+          --location=us-central1 \
+          --namespace=default
     env:
       - 'CLOUDSDK_COMPUTE_ZONE=us-central1'
     secretEnv: ['GCP_PROJECT']

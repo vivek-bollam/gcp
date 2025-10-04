@@ -31,9 +31,6 @@ steps:
     dir: 'backend'
     env:
       - 'GOOGLE_APPLICATION_CREDENTIALS=/workspace/key.json'
-    volumes:
-      - name: 'gcp-key'
-        path: '/workspace/key.json'
     secretEnv: ['GCP_KEY_JSON']
   # 6. Update secret with commit SHA
   - name: 'gcr.io/cloud-builders/gcloud'
@@ -60,6 +57,9 @@ substitutions:
   _COMMIT_SHA: '$COMMIT_SHA'
 options:
   logging: CLOUD_LOGGING_ONLY
+volumes:
+  - name: 'gcp-key'
+    path: '/workspace/key.json'
 availableSecrets:
   secretManager:
     - versionName: projects/my-gke-project-473809/secrets/project-id/versions/latest

@@ -55,16 +55,13 @@ steps:
     secretEnv: ['GCP_PROJECT']
   # 8. Deploy to GKE
   - name: 'gcr.io/cloud-builders/gke-deploy'
-    entrypoint: 'bash'
     args:
-      - '-c'
-      - |
-        gke-deploy run \
-          --filename=k8s/backend-deployment.yaml \
-          --image=us-central1-docker.pkg.dev/my-gke-project-473809/my-repo/backend:$COMMIT_SHA \
-          --cluster=sample-autopilot \
-          --location=us-central1 \
-          --namespace=default
+      - 'run'
+      - '--filename=k8s/backend-deployment.yaml'
+      - '--image=$_AR_URI/backend:$_COMMIT_SHA'
+      - '--cluster=sample-autopilot'
+      - '--location=us-central1'
+      - '--namespace=default'
     env:
       - 'CLOUDSDK_COMPUTE_ZONE=us-central1'
     secretEnv: ['GCP_PROJECT']
@@ -80,4 +77,4 @@ availableSecrets:
     - versionName: projects/my-gke-project-473809/secrets/cloudbuild-sa-key/versions/latest
       env: 'GCP_KEY_JSON'
 images:
-  - '$_AR_URI/backend:$COMMIT_SHA'
+  - '$_AR_URI/backend:$_COMMIT_SHA'

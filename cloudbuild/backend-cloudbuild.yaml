@@ -14,7 +14,7 @@ steps:
     args:
       - 'build'
       - '-t'
-      - '$_AR_URI/backend:$_COMMIT_SHA'
+      - "$_AR_URI/backend:$_COMMIT_SHA"
       - '.'
     dir: 'backend'
 
@@ -22,7 +22,7 @@ steps:
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'push'
-      - '$_AR_URI/backend:$_COMMIT_SHA'
+      - "$_AR_URI/backend:$_COMMIT_SHA"
 
   # 5. Dummy step to reference gcp-key volume
   - name: 'gcr.io/cloud-builders/gcloud'
@@ -35,7 +35,7 @@ steps:
         path: '/workspace/key.json'
     secretEnv: ['GCP_KEY_JSON']
 
-  # 6. Scan image with Trivy (using GCP ADC)
+  # 6. Scan image with Trivy
   - name: 'aquasec/trivy:0.45.1'
     args:
       - 'image'
@@ -48,7 +48,7 @@ steps:
       - 'HIGH,CRITICAL'
       - '--ignorefile'
       - '/workspace/backend/.trivyignore'
-      - '$_AR_URI/backend:$_COMMIT_SHA'
+      - "$_AR_URI/backend:$_COMMIT_SHA"
     dir: 'backend'
     env:
       - 'GOOGLE_APPLICATION_CREDENTIALS=/workspace/key.json'
@@ -71,7 +71,7 @@ steps:
     args:
       - 'run'
       - '--filename=k8s/backend-deployment.yaml'
-      - '--image=$_AR_URI/backend:$_COMMIT_SHA'
+      - "--image=$_AR_URI/backend:$_COMMIT_SHA"
       - '--cluster=sample-autopilot'
       - '--location=us-central1'
       - '--namespace=default'
@@ -80,8 +80,8 @@ steps:
     secretEnv: ['GCP_PROJECT']
 
 substitutions:
-  _AR_URI: 'us-central1-docker.pkg.dev/my-gke-project-473809/my-repo'
-  _COMMIT_SHA: $COMMIT_SHA   # ← note: no quotes, Cloud Build will substitute
+  _AR_URI: us-central1-docker.pkg.dev/my-gke-project-473809/my-repo
+  _COMMIT_SHA: $COMMIT_SHA   # ← built-in variable, no quotes
 
 options:
   logging: CLOUD_LOGGING_ONLY
@@ -94,4 +94,4 @@ availableSecrets:
       env: 'GCP_KEY_JSON'
 
 images:
-  - '$_AR_URI/backend:$_COMMIT_SHA'
+  - "$_AR_URI/backend:$_COMMIT_SHA"

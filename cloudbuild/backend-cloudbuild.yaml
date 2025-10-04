@@ -3,17 +3,21 @@ steps:
   - name: 'gcr.io/cloud-builders/npm'
     args: ['ci']
     dir: 'backend'
+
   # 2. Run unit tests
   - name: 'gcr.io/cloud-builders/npm'
     args: ['test']
     dir: 'backend'
+
   # 3. Build Docker image
   - name: 'gcr.io/cloud-builders/docker'
     args: ['build', '-t', '$_AR_URI/backend:$COMMIT_SHA', '.']
     dir: 'backend'
+
   # 4. Push Docker image to Artifact Registry
   - name: 'gcr.io/cloud-builders/docker'
     args: ['push', '$_AR_URI/backend:$COMMIT_SHA']
+
   # 5. Dummy step to reference gcp-key volume
   - name: 'gcr.io/cloud-builders/gcloud'
     entrypoint: 'bash'
@@ -24,6 +28,7 @@ steps:
       - name: 'gcp-key'
         path: '/workspace/key.json'
     secretEnv: ['GCP_KEY_JSON']
+
   # 6. Scan image with Trivy (using GCP ADC)
   - name: 'aquasec/trivy:0.45.1'
     args:
@@ -45,6 +50,7 @@ steps:
       - name: 'gcp-key'
         path: '/workspace/key.json'
     secretEnv: ['GCP_KEY_JSON']
+
   # 7. Update secret with commit SHA
   - name: 'gcr.io/cloud-builders/gcloud'
     entrypoint: 'bash'
@@ -53,28 +59,32 @@ steps:
       - |
         echo "GIT_COMMIT_SHA=$COMMIT_SHA" | gcloud secrets versions add git-commit-sha --data-file=-
     secretEnv: ['GCP_PROJECT']
+
   # 8. Deploy to GKE
   - name: 'gcr.io/cloud-builders/gke-deploy'
     args:
       - 'run'
       - '--filename=k8s/backend-deployment.yaml'
-      - '--image=$_AR_URI/backend:$_COMMIT_SHA'
+      - '--image=$_AR_URI/backend:$COMMIT_SHA'
       - '--cluster=sample-autopilot'
       - '--location=us-central1'
       - '--namespace=default'
     env:
       - 'CLOUDSDK_COMPUTE_ZONE=us-central1'
     secretEnv: ['GCP_PROJECT']
+
 substitutions:
   _AR_URI: 'us-central1-docker.pkg.dev/my-gke-project-473809/my-repo'
-  _COMMIT_SHA: '$COMMIT_SHA'
+
 options:
   logging: CLOUD_LOGGING_ONLY
+
 availableSecrets:
   secretManager:
     - versionName: projects/my-gke-project-473809/secrets/project-id/versions/latest
       env: 'GCP_PROJECT'
     - versionName: projects/my-gke-project-473809/secrets/cloudbuild-sa-key/versions/latest
       env: 'GCP_KEY_JSON'
+
 images:
-  - '$_AR_URI/backend:$_COMMIT_SHA'
+  - '$_AR_URI/backend:$COMMIT_SHA'

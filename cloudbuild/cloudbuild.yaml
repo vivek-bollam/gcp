@@ -66,6 +66,12 @@ steps:
       - '--severity'
       - 'HIGH,CRITICAL'
       - '$_AR_URI/frontend:$COMMIT_SHA'
+    env:
+      - 'GOOGLE_APPLICATION_CREDENTIALS=/workspace/key.json'
+    volumes:
+      - name: 'gcp-key'
+        path: '/workspace/key.json'
+    secretEnv: ['GCP_KEY_JSON']
     id: frontend-scan
   # 10. Push frontend Docker image
   - name: 'gcr.io/cloud-builders/docker'
@@ -165,3 +171,4 @@ availableSecrets:
 images:
   - '$_AR_URI/backend:$COMMIT_SHA'
   - '$_AR_URI/frontend:$COMMIT_SHA'
+

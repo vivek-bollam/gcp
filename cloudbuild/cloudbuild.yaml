@@ -1,0 +1,167 @@
+timeout: 1800s
+steps:
+  # 1. Install backend dependencies
+  - name: 'gcr.io/cloud-builders/npm'
+    args: ['ci']
+    dir: 'backend'
+    id: backend-install
+  # 2. Run backend unit tests
+  - name: 'gcr.io/cloud-builders/npm'
+    args: ['test']
+    dir: 'backend'
+    id: backend-test
+  # 3. Build backend Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', '$_AR_URI/backend:$COMMIT_SHA', '.']
+    dir: 'backend'
+    id: backend-build
+  # 4. Scan backend image with Trivy
+  - name: 'aquasec/trivy:0.45.1'
+    args:
+      - 'image'
+      - '--exit-code'
+      - '1'
+      - '--no-progress'
+      - '--scanners'
+      - 'vuln'
+      - '--severity'
+      - 'HIGH,CRITICAL'
+      - '--ignorefile'
+      - '/workspace/backend/.trivyignore'
+      - '$_AR_URI/backend:$COMMIT_SHA'
+    dir: 'backend'
+    env:
+      - 'GOOGLE_APPLICATION_CREDENTIALS=/workspace/key.json'
+    volumes:
+      - name: 'gcp-key'
+        path: '/workspace/key.json'
+    secretEnv: ['GCP_KEY_JSON']
+    id: backend-scan
+  # 5. Push backend Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', '$_AR_URI/backend:$COMMIT_SHA']
+    id: backend-push
+  # 6. Install frontend dependencies
+  - name: 'gcr.io/cloud-builders/npm'
+    args: ['ci']
+    dir: 'frontend'
+    id: frontend-install
+  # 7. Run frontend unit tests
+  - name: 'gcr.io/cloud-builders/npm'
+    args: ['test']
+    dir: 'frontend'
+    id: frontend-test
+  # 8. Build frontend Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', '$_AR_URI/frontend:$COMMIT_SHA', '.']
+    dir: 'frontend'
+    id: frontend-build
+  # 9. Scan frontend image with Trivy
+  - name: 'aquasec/trivy:0.45.1'
+    args:
+      - 'image'
+      - '--exit-code'
+      - '1'
+      - '--no-progress'
+      - '--severity'
+      - 'HIGH,CRITICAL'
+      - '$_AR_URI/frontend:$COMMIT_SHA'
+    id: frontend-scan
+  # 10. Push frontend Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', '$_AR_URI/frontend:$COMMIT_SHA']
+    id: frontend-push
+  # 11. Debug environment variables
+  - name: 'gcr.io/cloud-builders/gcloud'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -e
+        echo "DEBUG: Listing environment variables"
+        env
+        echo "DEBUG: COMMIT_SHA is $COMMIT_SHA"
+        echo "DEBUG: Backend image is $_AR_URI/backend:$COMMIT_SHA"
+        echo "DEBUG: Frontend image is $_AR_URI/frontend:$COMMIT_SHA"
+    env:
+      - 'CLOUDSDK_COMPUTE_ZONE=us-central1'
+    secretEnv: ['GCP_PROJECT']
+    id: debug-env
+  # 12. Update backend secret with commit SHA
+  - name: 'gcr.io/cloud-builders/gcloud'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -e
+        echo "GIT_COMMIT_SHA=$COMMIT_SHA" | gcloud secrets versions add git-commit-sha --data-file=-
+    secretEnv: ['GCP_PROJECT']
+    id: update-secret
+  # 13. Deploy backend to GKE
+  - name: 'gcr.io/cloud-builders/gcloud'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -e
+        echo "DEBUG: Commit SHA: $COMMIT_SHA"
+        echo "DEBUG: Image: $_AR_URI/backend:$COMMIT_SHA"
+        if [ -z "$COMMIT_SHA" ]; then echo "ERROR: COMMIT_SHA is empty"; exit 1; fi
+        gcloud container clusters get-credentials sample-autopilot --region=us-central1 --project=my-gke-project-473809
+        kubectl set image deployment/backend backend=$_AR_URI/backend:$COMMIT_SHA --namespace=default --record
+    env:
+      - 'CLOUDSDK_COMPUTE_ZONE=us-central1'
+    id: backend-deploy
+  # 14. Deploy frontend to GKE
+  - name: 'gcr.io/cloud-builders/gke-deploy'
+    args:
+      - 'run'
+      - '--filename=k8s/frontend-deployment.yaml'
+      - '--image=$_AR_URI/frontend:$COMMIT_SHA'
+      - '--cluster=sample-autopilot'
+      - '--location=us-central1'
+      - '--namespace=default'
+    env:
+      - 'CLOUDSDK_COMPUTE_ZONE=us-central1'
+    secretEnv: ['GCP_PROJECT']
+    id: frontend-deploy
+  # 15. Create Kubernetes secret
+  - name: 'gcr.io/cloud-builders/kubectl'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -e
+        gcloud container clusters get-credentials sample-autopilot --region=us-central1 --project=my-gke-project-473809
+        kubectl create secret generic backend-secrets --from-literal=git-commit-sha=$COMMIT_SHA --dry-run=client -o yaml | kubectl apply -f -
+    env:
+      - 'CLOUDSDK_COMPUTE_ZONE=us-central1'
+    id: backend-secret
+  # 16. Apply Kubernetes manifests
+  - name: 'gcr.io/cloud-builders/kubectl'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -e
+        gcloud container clusters get-credentials sample-autopilot --region=us-central1 --project=my-gke-project-473809
+        kubectl apply -f k8s/backend-deployment.yaml
+        kubectl apply -f k8s/frontend-deployment.yaml
+        kubectl apply -f k8s/ingress.yaml
+    env:
+      - 'CLOUDSDK_COMPUTE_ZONE=us-central1'
+    id: apply-manifests
+substitutions:
+  _AR_URI: us-central1-docker.pkg.dev/my-gke-project-473809/my-repo
+  _COMMIT_SHA: $COMMIT_SHA
+options:
+  logging: CLOUD_LOGGING_ONLY
+availableSecrets:
+  secretManager:
+    - versionName: projects/my-gke-project-473809/secrets/project-id/versions/latest
+      env: 'GCP_PROJECT'
+    - versionName: projects/my-gke-project-473809/secrets/cloudbuild-sa-key/versions/latest
+      env: 'GCP_KEY_JSON'
+images:
+  - '$_AR_URI/backend:$COMMIT_SHA'
+  - '$_AR_URI/frontend:$COMMIT_SHA'

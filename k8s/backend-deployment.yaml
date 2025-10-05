@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: backend
+  namespace: default
 spec:
   replicas: 1
   selector:
@@ -26,13 +27,13 @@ spec:
             memory: 256Mi
         livenessProbe:
           httpGet:
-            path: /health
+            path: /api/health
             port: 3000
           initialDelaySeconds: 30
           periodSeconds: 10
         readinessProbe:
           httpGet:
-            path: /health
+            path: /api/health
             port: 3000
           initialDelaySeconds: 5
           periodSeconds: 5
@@ -45,15 +46,4 @@ spec:
           valueFrom:
             secretKeyRef:
               name: backend-secrets
-              key: GIT_COMMIT_SHA
-        volumeMounts:
-        - name: secrets
-          mountPath: "/mnt/secrets"
-          readOnly: true
-      volumes:
-      - name: secrets
-        csi:
-          driver: secrets-store.csi.k8s.io
-          readOnly: true
-          volumeAttributes:
-            secretProviderClass: backend-secrets
+              key: git-commit-sha

@@ -87,6 +87,28 @@ steps:
         kubectl set image deployment/backend backend=$_AR_URI/backend:$COMMIT_SHA --namespace=default --record
     env:
       - 'CLOUDSDK_COMPUTE_ZONE=us-central1'
+  # 10. Create Kubernetes Secret
+  - name: 'gcr.io/cloud-builders/kubectl'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -e
+        gcloud container clusters get-credentials sample-autopilot --region=us-central1 --project=my-gke-project-473809
+        kubectl create secret generic backend-secrets --from-literal=git-commit-sha=$COMMIT_SHA --dry-run=client -o yaml | kubectl apply -f -
+    env:
+      - 'CLOUDSDK_COMPUTE_ZONE=us-central1'
+  # 11. Apply Kubernetes manifests
+  - name: 'gcr.io/cloud-builders/kubectl'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -e
+        gcloud container clusters get-credentials sample-autopilot --region=us-central1 --project=my-gke-project-473809
+        kubectl apply -f k8s/backend-deployment.yaml
+    env:
+      - 'CLOUDSDK_COMPUTE_ZONE=us-central1'
 substitutions:
   _AR_URI: us-central1-docker.pkg.dev/my-gke-project-473809/my-repo
   _COMMIT_SHA: $COMMIT_SHA
